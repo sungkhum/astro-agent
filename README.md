@@ -15,7 +15,7 @@ npx github:sungkhum/astro-agent agents-md --output AGENTS.md,CLAUDE.md
 This will:
 - Download the Astro docs into `.astro-docs/`
 - Build a compact index of markdown files
-- Inject it into your target markdown file(s) (default: `AGENTS.md` and `CLAUDE.md`)
+- Inject it into your target markdown file(s) (prompted if `--output` is omitted)
 - Add `.astro-docs/` to `.gitignore` if missing
 
 ## Version support

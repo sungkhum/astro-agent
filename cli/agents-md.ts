@@ -44,7 +44,7 @@ function formatSize(bytes: number): string {
 
 function parseOutputs(output?: string): string[] {
   if (!output) {
-    return ['AGENTS.md', 'CLAUDE.md']
+    return []
   }
 
   const outputs = output
@@ -52,13 +52,16 @@ function parseOutputs(output?: string): string[] {
     .map((item) => item.trim())
     .filter(Boolean)
 
-  return outputs.length > 0 ? outputs : ['AGENTS.md', 'CLAUDE.md']
+  return outputs.length > 0 ? outputs : []
 }
 
 export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   const cwd = process.cwd()
 
-  const outputs = parseOutputs(options.output)
+  let outputs = parseOutputs(options.output)
+  if (outputs.length === 0) {
+    outputs = await promptForOutputs()
+  }
   const docsDirName = getDocsDirName()
   const docsPath = path.join(cwd, docsDirName)
   const docsLinkPath = `./${docsDirName}`
@@ -174,4 +177,62 @@ async function promptForVersion(): Promise<number> {
   }
 
   return response.version as number
+}
+
+async function promptForOutputs(): Promise<string[]> {
+  const response = await prompts(
+    [
+      {
+        type: 'select',
+        name: 'target',
+        message: 'Target markdown file(s)',
+        choices: [
+          { title: 'AGENTS.md', value: 'AGENTS.md' },
+          { title: 'CLAUDE.md', value: 'CLAUDE.md' },
+          { title: 'Both (AGENTS.md + CLAUDE.md)', value: 'both' },
+          { title: 'Custom...', value: '__custom__' },
+        ],
+        initial: 2,
+      },
+    ],
+    { onCancel }
+  )
+
+  if (!response.target) {
+    console.log(pc.yellow('\nCancelled.'))
+    process.exit(0)
+  }
+
+  if (response.target === 'both') {
+    return ['AGENTS.md', 'CLAUDE.md']
+  }
+
+  if (response.target === '__custom__') {
+    const customResponse = await prompts(
+      {
+        type: 'text',
+        name: 'customFile',
+        message: 'Enter custom file path(s), comma-separated',
+        initial: 'AGENTS.md',
+        validate: (value: string) =>
+          value.trim() ? true : 'Please enter at least one file path',
+      },
+      { onCancel }
+    )
+
+    if (!customResponse.customFile) {
+      console.log(pc.yellow('\nCancelled.'))
+      process.exit(0)
+    }
+
+    const parsed = parseOutputs(customResponse.customFile)
+    if (parsed.length === 0) {
+      console.log(pc.yellow('\nCancelled.'))
+      process.exit(0)
+    }
+
+    return parsed
+  }
+
+  return [response.target as string]
 }
