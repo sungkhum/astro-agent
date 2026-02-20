@@ -124,10 +124,12 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
       isNewFile = false
     }
 
+    const isClaude = path.basename(outputFile).toLowerCase() === 'claude.md'
     const indexContent = generateDocsIndex({
       docsPath: docsLinkPath,
       sections,
       outputFile,
+      mode: isClaude ? 'compact' : 'full',
     })
 
     const updated = injectIndex(content, indexContent)

@@ -270,14 +270,25 @@ function groupByDirectory(files: string[]): Map<string, string[]> {
   return grouped
 }
 
+function countSectionFiles(section: DocSection): number {
+  let total = section.files.length
+  for (const subsection of section.subsections) {
+    total += countSectionFiles(subsection)
+  }
+  return total
+}
+
+type IndexMode = 'full' | 'compact'
+
 interface IndexData {
   docsPath: string
   sections: DocSection[]
   outputFile: string
+  mode?: IndexMode
 }
 
 export function generateDocsIndex(data: IndexData): string {
-  const { docsPath, sections, outputFile } = data
+  const { docsPath, sections, outputFile, mode = 'full' } = data
 
   const parts: string[] = []
 
@@ -290,11 +301,20 @@ export function generateDocsIndex(data: IndexData): string {
     `If docs missing, run this command first: npx github:sungkhum/astro-agent agents-md --output ${outputFile}`
   )
 
-  const allFiles = collectAllFilesFromSections(sections)
-  const grouped = groupByDirectory(allFiles)
+  if (mode === 'compact') {
+    const compact = sections.map((section) => {
+      const count = countSectionFiles(section)
+      const label = section.name === '.' ? 'root' : section.name
+      return `${label}(${count})`
+    })
+    parts.push(`sections:{${compact.join(',')}}`)
+  } else {
+    const allFiles = collectAllFilesFromSections(sections)
+    const grouped = groupByDirectory(allFiles)
 
-  for (const [dir, files] of grouped) {
-    parts.push(`${dir}:{${files.join(',')}}`)
+    for (const [dir, files] of grouped) {
+      parts.push(`${dir}:{${files.join(',')}}`)
+    }
   }
 
   return parts.join('|')
