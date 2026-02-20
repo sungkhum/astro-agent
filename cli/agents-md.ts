@@ -15,11 +15,13 @@ import {
   generateDocsIndex,
   getDocsDirName,
   getExtraDocsDirName,
+  getIndexDirName,
   injectIndex,
   mergeExtraDocs,
   parseMajorVersion,
   pullDocs,
   resolveDocsRef,
+  ensureGitignoreEntryFor,
 } from '../lib/agents-md'
 
 class BadInput extends Error {
@@ -65,6 +67,10 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   const docsDirName = getDocsDirName()
   const docsPath = path.join(cwd, docsDirName)
   const docsLinkPath = `./${docsDirName}`
+  const indexDirName = getIndexDirName()
+  const indexDirPath = path.join(cwd, indexDirName)
+  const fullIndexFile = path.join(indexDirPath, 'full.index.txt')
+  const fullIndexLink = `./${indexDirName}/full.index.txt`
 
   let docsRef = options.ref
 
@@ -111,6 +117,15 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   const docFiles = collectDocFiles(docsPath)
   const sections = buildDocTree(docFiles)
 
+  fs.mkdirSync(indexDirPath, { recursive: true })
+  const fullIndexContent = generateDocsIndex({
+    docsPath: docsLinkPath,
+    sections,
+    outputFile: outputs[0] ?? 'AGENTS.md',
+    mode: 'full',
+  })
+  fs.writeFileSync(fullIndexFile, fullIndexContent, 'utf-8')
+
   for (const outputFile of outputs) {
     const outputPath = path.join(cwd, outputFile)
 
@@ -130,6 +145,7 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
       sections,
       outputFile,
       mode: isClaude ? 'compact' : 'full',
+      fullIndexPath: fullIndexLink,
     })
 
     const updated = injectIndex(content, indexContent)
@@ -145,6 +161,7 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   }
 
   const gitignoreResult = ensureGitignoreEntry(cwd)
+  const indexGitignoreResult = ensureGitignoreEntryFor(cwd, indexDirName)
 
   if (mergedExtras) {
     console.log(
@@ -153,6 +170,11 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   }
   if (gitignoreResult.updated) {
     console.log(`${pc.green('✓')} Added ${pc.bold(docsDirName)} to .gitignore`)
+  }
+  if (indexGitignoreResult.updated) {
+    console.log(
+      `${pc.green('✓')} Added ${pc.bold(indexDirName)} to .gitignore`
+    )
   }
 
   console.log('')

@@ -16,7 +16,8 @@ This will:
 - Download the Astro docs into `.astro-docs/`
 - Build a compact index of markdown files
 - Inject it into your target markdown file(s) (prompted if `--output` is omitted). `CLAUDE.md` receives a compact index.
-- Add `.astro-docs/` to `.gitignore` if missing
+- Save the full index at `.astro-docs-index/full.index.txt`
+- Add `.astro-docs/` and `.astro-docs-index/` to `.gitignore` if missing
 
 ## Version support
 

@@ -24,6 +24,7 @@ interface DetectResult {
 const DOCS_REPO_URL = 'https://github.com/withastro/docs.git'
 const DOCS_DIR_NAME = '.astro-docs'
 const EXTRA_DOCS_DIR_NAME = '.astro-docs-extra'
+const INDEX_DIR_NAME = '.astro-docs-index'
 const START_MARKER = '<!-- ASTRO-AGENTS-MD-START -->'
 const END_MARKER = '<!-- ASTRO-AGENTS-MD-END -->'
 const INDEX_TITLE = 'Astro Docs Index'
@@ -285,10 +286,17 @@ interface IndexData {
   sections: DocSection[]
   outputFile: string
   mode?: IndexMode
+  fullIndexPath?: string
 }
 
 export function generateDocsIndex(data: IndexData): string {
-  const { docsPath, sections, outputFile, mode = 'full' } = data
+  const {
+    docsPath,
+    sections,
+    outputFile,
+    mode = 'full',
+    fullIndexPath = `./${INDEX_DIR_NAME}/full.index.txt`,
+  } = data
 
   const parts: string[] = []
 
@@ -308,6 +316,7 @@ export function generateDocsIndex(data: IndexData): string {
       return `${label}(${count})`
     })
     parts.push(`sections:{${compact.join(',')}}`)
+    parts.push(`full_index: ${fullIndexPath}`)
   } else {
     const allFiles = collectAllFilesFromSections(sections)
     const grouped = groupByDirectory(allFiles)
@@ -346,7 +355,10 @@ export interface GitignoreStatus {
 
 export function ensureGitignoreEntry(cwd: string): GitignoreStatus {
   const gitignorePath = path.join(cwd, '.gitignore')
-  const entryRegex = /^\s*\.astro-docs(?:\/.*)?$/
+  const entry = DOCS_DIR_NAME
+  const entryRegex = new RegExp(
+    `^\\s*${escapeRegex(entry)}(?:/.*)?$`
+  )
 
   let content = ''
   if (fs.existsSync(gitignorePath)) {
@@ -361,7 +373,8 @@ export function ensureGitignoreEntry(cwd: string): GitignoreStatus {
 
   const needsNewline = content.length > 0 && !content.endsWith('\n')
   const header = content.includes('# astro-agent') ? '' : '# astro-agent\n'
-  const newContent = content + (needsNewline ? '\n' : '') + header + '.astro-docs/\n'
+  const newContent =
+    content + (needsNewline ? '\n' : '') + header + `${entry}/\n`
 
   fs.writeFileSync(gitignorePath, newContent, 'utf-8')
 
@@ -374,4 +387,37 @@ export function getDocsDirName(): string {
 
 export function getExtraDocsDirName(): string {
   return EXTRA_DOCS_DIR_NAME
+}
+
+export function getIndexDirName(): string {
+  return INDEX_DIR_NAME
+}
+
+export function ensureGitignoreEntryFor(cwd: string, entry: string): GitignoreStatus {
+  const gitignorePath = path.join(cwd, '.gitignore')
+  const entryRegex = new RegExp(`^\\s*${escapeRegex(entry)}(?:/.*)?$`)
+
+  let content = ''
+  if (fs.existsSync(gitignorePath)) {
+    content = fs.readFileSync(gitignorePath, 'utf-8')
+  }
+
+  const hasEntry = content.split(/\r?\n/).some((line) => entryRegex.test(line))
+
+  if (hasEntry) {
+    return { path: gitignorePath, updated: false, alreadyPresent: true }
+  }
+
+  const needsNewline = content.length > 0 && !content.endsWith('\n')
+  const header = content.includes('# astro-agent') ? '' : '# astro-agent\n'
+  const newContent =
+    content + (needsNewline ? '\n' : '') + header + `${entry}/\n`
+
+  fs.writeFileSync(gitignorePath, newContent, 'utf-8')
+
+  return { path: gitignorePath, updated: true, alreadyPresent: false }
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
